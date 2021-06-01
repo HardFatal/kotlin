@@ -462,11 +462,11 @@ open class RawFirBuilder(
             }
         }
 
-        private fun KtParameter.toFirProperty(firParameter: FirValueParameter, isExpect: Boolean): FirProperty {
+        private fun KtParameter.toFirProperty(firParameter: FirValueParameter): FirProperty {
             require(hasValOrVar())
             val type = typeReference.toFirOrErrorType()
             val status = FirDeclarationStatusImpl(visibility, modality).apply {
-                this.isExpect = isExpect
+                isExpect = hasExpectModifier() || this@RawFirBuilder.context.containerIsExpect
                 isActual = hasActualModifier()
                 isOverride = hasModifier(OVERRIDE_KEYWORD)
                 isConst = hasModifier(CONST_KEYWORD)
@@ -629,7 +629,8 @@ open class RawFirBuilder(
             delegatedSelfTypeRef: FirTypeRef?,
             delegatedEnumSuperTypeRef: FirTypeRef?,
             classKind: ClassKind,
-            containerTypeParameters: List<FirTypeParameterRef>
+            containerTypeParameters: List<FirTypeParameterRef>,
+            containingClassIsExpectClass: Boolean
         ): FirTypeRef {
             var superTypeCallEntry: KtSuperTypeCallEntry? = null
             var delegatedSuperTypeRef: FirTypeRef? = null
@@ -707,7 +708,7 @@ open class RawFirBuilder(
             // it may be not possible to determine delegated super type right here
             delegatedSuperTypeRef = delegatedSuperTypeRef ?: defaultDelegatedSuperTypeRef
             val shouldNotGenerateImplicitPrimaryConstructor = hasExplicitPrimaryConstructor() || hasSecondaryConstructors() ||
-                    (hasExpectModifier() && classKind != ClassKind.ENUM_CLASS)
+                    (containingClassIsExpectClass && classKind != ClassKind.ENUM_CLASS)
 
             if ((this !is KtClass || !this.isInterface()) && (primaryConstructor != null || !shouldNotGenerateImplicitPrimaryConstructor)) {
                 val firPrimaryConstructor = primaryConstructor.toFirConstructor(
@@ -758,7 +759,7 @@ open class RawFirBuilder(
 
             val explicitVisibility = this?.visibility?.takeUnless { it == Visibilities.Unknown }
             val status = FirDeclarationStatusImpl(explicitVisibility ?: defaultVisibility(), Modality.FINAL).apply {
-                isExpect = this@toFirConstructor?.hasExpectModifier() == true || owner.hasExpectModifier()
+                isExpect = this@toFirConstructor?.hasExpectModifier() == true || this@RawFirBuilder.context.containerIsExpect
                 isActual = this@toFirConstructor?.hasActualModifier() == true
                 isInner = owner.hasModifier(INNER_KEYWORD)
                 isFromSealedClass = owner.hasModifier(SEALED_KEYWORD) && explicitVisibility !== Visibilities.Private
@@ -822,7 +823,7 @@ open class RawFirBuilder(
                 name = nameAsSafeName
                 status = FirDeclarationStatusImpl(Visibilities.Public, Modality.FINAL).apply {
                     isStatic = true
-                    isExpect = containingClassOrObject?.hasExpectModifier() == true
+                    isExpect = hasExpectModifier() || this@RawFirBuilder.context.containerIsExpect
                 }
                 symbol = FirEnumEntrySymbol(callableIdForName(nameAsSafeName))
                 if (ownerClassHasDefaultConstructor && ktEnumEntry.initializerList == null &&
@@ -831,7 +832,7 @@ open class RawFirBuilder(
                     return@buildEnumEntry
                 }
                 extractAnnotationsTo(this)
-                initializer = withChildClassName(nameAsSafeName) {
+                initializer = withChildClassName(nameAsSafeName, isExpect = false) {
                     buildAnonymousObjectExpression {
                         val enumEntrySource = toFirSourceElement(FirFakeSourceElementKind.EnumInitializer)
                         source = enumEntrySource
@@ -863,7 +864,7 @@ open class RawFirBuilder(
                                 typeParameters
                             )
                             // Use ANONYMOUS_OBJECT_NAME for the owner class id for enum entry declarations (see KT-42351)
-                            withChildClassName(ANONYMOUS_OBJECT_NAME, forceLocalContext = true) {
+                            withChildClassName(ANONYMOUS_OBJECT_NAME, forceLocalContext = true, isExpect = false) {
                                 for (declaration in ktEnumEntry.declarations) {
                                     declarations += declaration.toFirDeclaration(
                                         correctedEnumSelfTypeRef,
@@ -891,8 +892,10 @@ open class RawFirBuilder(
         override fun visitClassOrObject(classOrObject: KtClassOrObject, data: Unit): FirElement {
             // NB: enum entry nested classes are considered local by FIR design (see discussion in KT-45115)
             val isLocal = classOrObject.isLocal || classOrObject.getStrictParentOfType<KtEnumEntry>() != null
+            val classIsExpect = classOrObject.hasExpectModifier() || context.containerIsExpect
             return withChildClassName(
                 classOrObject.nameAsSafeName,
+                isExpect = classIsExpect,
                 forceLocalContext = isLocal
             ) {
                 val classKind = when (classOrObject) {
@@ -909,7 +912,7 @@ open class RawFirBuilder(
                     if (isLocal) Visibilities.Local else classOrObject.visibility,
                     classOrObject.modality,
                 ).apply {
-                    isExpect = classOrObject.hasExpectModifier()
+                    isExpect = classIsExpect
                     isActual = classOrObject.hasActualModifier()
                     isInner = classOrObject.hasModifier(INNER_KEYWORD)
                     isCompanion = (classOrObject as? KtObjectDeclaration)?.isCompanion() == true
@@ -949,7 +952,8 @@ open class RawFirBuilder(
                             delegatedSelfType,
                             null,
                             classKind,
-                            typeParameters
+                            typeParameters,
+                            containingClassIsExpectClass = classIsExpect
                         )
 
                         val primaryConstructor = classOrObject.primaryConstructor
@@ -959,7 +963,7 @@ open class RawFirBuilder(
                                 firPrimaryConstructor.valueParameters
                             ).forEach { (ktParameter, firParameter) ->
                                 if (ktParameter.hasValOrVar()) {
-                                    addDeclaration(ktParameter.toFirProperty(firParameter, classOrObject.hasExpectModifier()))
+                                    addDeclaration(ktParameter.toFirProperty(firParameter))
                                 }
                             }
                         }
@@ -1001,11 +1005,11 @@ open class RawFirBuilder(
                                 baseModuleData,
                                 context.packageFqName,
                                 context.className,
-                                classOrObject.hasExpectModifier()
+                                classIsExpect
                             )
                             generateValueOfFunction(
                                 baseModuleData, context.packageFqName, context.className,
-                                classOrObject.hasExpectModifier()
+                                classIsExpect
                             )
                         }
 
@@ -1020,7 +1024,7 @@ open class RawFirBuilder(
 
         override fun visitObjectLiteralExpression(expression: KtObjectLiteralExpression, data: Unit): FirElement {
             val objectDeclaration = expression.objectDeclaration
-            return withChildClassName(ANONYMOUS_OBJECT_NAME, forceLocalContext = true) {
+            return withChildClassName(ANONYMOUS_OBJECT_NAME, forceLocalContext = true, isExpect = false) {
                 buildAnonymousObjectExpression {
                     val sourceElement = objectDeclaration.toFirSourceElement()
                     source = sourceElement
@@ -1042,7 +1046,8 @@ open class RawFirBuilder(
                             delegatedSelfType,
                             null,
                             ClassKind.CLASS,
-                            containerTypeParameters = emptyList()
+                            containerTypeParameters = emptyList(),
+                        containingClassIsExpectClass = false
                         )
 
                         for (declaration in objectDeclaration.declarations) {
@@ -1060,14 +1065,15 @@ open class RawFirBuilder(
         }
 
         override fun visitTypeAlias(typeAlias: KtTypeAlias, data: Unit): FirElement {
-            return withChildClassName(typeAlias.nameAsSafeName) {
+            val typeAliasIsExpect = typeAlias.hasExpectModifier() || context.containerIsExpect
+            return withChildClassName(typeAlias.nameAsSafeName, isExpect = typeAliasIsExpect) {
                 buildTypeAlias {
                     source = typeAlias.toFirSourceElement()
                     moduleData = baseModuleData
                     origin = FirDeclarationOrigin.Source
                     name = typeAlias.nameAsSafeName
                     status = FirDeclarationStatusImpl(typeAlias.visibility, Modality.FINAL).apply {
-                        isExpect = typeAlias.hasExpectModifier()
+                        isExpect = typeAliasIsExpect
                         isActual = typeAlias.hasActualModifier()
                     }
                     symbol = FirTypeAliasSymbol(context.currentClassId)
@@ -1107,7 +1113,7 @@ open class RawFirBuilder(
                         if (function.isLocal) Visibilities.Local else function.visibility,
                         function.modality,
                     ).apply {
-                        isExpect = function.hasExpectModifier() || function.containingClassOrObject?.hasExpectModifier() == true
+                        isExpect = function.hasExpectModifier() || context.containerIsExpect
                         isActual = function.hasActualModifier()
                         isOverride = function.hasModifier(OVERRIDE_KEYWORD)
                         isOperator = function.hasModifier(OPERATOR_KEYWORD)
@@ -1292,7 +1298,7 @@ open class RawFirBuilder(
                 returnTypeRef = delegatedSelfTypeRef
                 val explicitVisibility = visibility
                 status = FirDeclarationStatusImpl(explicitVisibility, Modality.FINAL).apply {
-                    isExpect = hasExpectModifier() || owner.hasExpectModifier()
+                    isExpect = hasExpectModifier() || this@RawFirBuilder.context.containerIsExpect
                     isActual = hasActualModifier()
                     isInner = owner.hasModifier(INNER_KEYWORD)
                     isFromSealedClass = owner.hasModifier(SEALED_KEYWORD) && explicitVisibility !== Visibilities.Private
@@ -1435,7 +1441,7 @@ open class RawFirBuilder(
                         setter = this@toFirProperty.setter.toFirPropertyAccessor(this@toFirProperty, propertyType, isGetter = false)
 
                         status = FirDeclarationStatusImpl(visibility, modality).apply {
-                            isExpect = hasExpectModifier() || containingClassOrObject?.hasExpectModifier() == true
+                            isExpect = hasExpectModifier() || this@RawFirBuilder.context.containerIsExpect
                             isActual = hasActualModifier()
                             isOverride = hasModifier(OVERRIDE_KEYWORD)
                             isConst = hasModifier(CONST_KEYWORD)
