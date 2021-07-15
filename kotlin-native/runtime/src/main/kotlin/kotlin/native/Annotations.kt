@@ -58,6 +58,12 @@ public typealias ThreadLocal = kotlin.native.concurrent.ThreadLocal
 /** @suppress */
 public typealias SharedImmutable = kotlin.native.concurrent.SharedImmutable
 
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.BINARY)
+@ExperimentalStdlibApi
+@Deprecated("This annotation could be removed in the future, consider filing an issue about the case where it is needed")
+public annotation class EagerInitialization
+
 /**
  * Makes top level function available from C/C++ code with the given name.
  *
