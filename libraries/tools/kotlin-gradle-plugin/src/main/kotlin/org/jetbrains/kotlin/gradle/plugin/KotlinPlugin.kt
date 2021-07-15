@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.gradle.plugin
 
 import com.android.build.gradle.*
+import com.android.build.gradle.BasePlugin
 import com.android.build.gradle.api.AndroidSourceSet
 import com.android.build.gradle.api.BaseVariant
 import com.android.build.gradle.api.SourceKind
@@ -18,10 +19,7 @@ import org.gradle.api.file.Directory
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.logging.Logging
-import org.gradle.api.plugins.InvalidPluginException
-import org.gradle.api.plugins.JavaPlugin
-import org.gradle.api.plugins.JavaPluginConvention
-import org.gradle.api.plugins.MavenPluginConvention
+import org.gradle.api.plugins.*
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPom
@@ -689,18 +687,18 @@ internal open class KotlinAndroidPlugin(
     override fun apply(project: Project) {
         checkGradleCompatibility()
 
-        val androidTarget = KotlinAndroidTarget("", project)
-        (project.kotlinExtension as KotlinAndroidProjectExtension).target = androidTarget
-
-        applyToTarget(androidTarget)
-
-        applyUserDefinedAttributes(androidTarget)
-
-        customizeKotlinDependencies(project)
-
-        registry.register(KotlinModelBuilder(project.getKotlinPluginVersion(), androidTarget))
-
-        project.whenEvaluated { project.components.addAll(androidTarget.components) }
+        project.plugins.dynamicallyApplyWhenAndroidPluginIsApplied(
+            {
+                KotlinAndroidTarget("", project).also {
+                    (project.kotlinExtension as KotlinAndroidProjectExtension).target = it
+                }
+            }
+        ) { androidTarget ->
+            applyUserDefinedAttributes(androidTarget)
+            customizeKotlinDependencies(project)
+            registry.register(KotlinModelBuilder(project.getKotlinPluginVersion(), androidTarget))
+            project.whenEvaluated { project.components.addAll(androidTarget.components) }
+        }
     }
 
     companion object {
@@ -721,8 +719,28 @@ internal open class KotlinAndroidPlugin(
             return Android25ProjectHandler(kotlinTools)
         }
 
-        fun applyToTarget(kotlinTarget: KotlinAndroidTarget) {
-            androidTargetHandler().configureTarget(kotlinTarget)
+        internal fun PluginContainer.dynamicallyApplyWhenAndroidPluginIsApplied(
+            kotlinAndroidTargetProvider: () -> KotlinAndroidTarget,
+            additionalConfiguration: (KotlinAndroidTarget) -> Unit = {}
+        ) {
+            listOf(
+                "com.android.application",
+                "com.android.library",
+                "com.android.dynamic-feature",
+                "com.android.asset-pack",
+                "com.android.asset-pack-bundle",
+                "com.android.lint",
+                "com.android.test",
+                // Deprecated android plugins
+                "com.android.instantapp",
+                "com.android.feature"
+            ).forEach { pluginId ->
+                withId(pluginId) {
+                    val target = kotlinAndroidTargetProvider()
+                    androidTargetHandler().configureTarget(target)
+                    additionalConfiguration(target)
+                }
+            }
         }
     }
 }
