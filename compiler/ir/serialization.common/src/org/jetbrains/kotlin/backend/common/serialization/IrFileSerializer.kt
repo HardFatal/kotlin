@@ -319,7 +319,7 @@ open class IrFileSerializer(
             is IdSignature.LoweredDeclarationSignature -> proto.icSig = serializeLoweredDeclarationSignature(idSignature)
             is IdSignature.GlobalFileLocalSignature -> proto.privateSig = serializePrivateSignature(idSignature)
             is IdSignature.GlobalScopeLocalDeclaration -> proto.externalScopedLocalSig = serializeScopeLocalSignature(idSignature)
-            else -> {}
+            is IdSignature.SpecialFakeOverrideSignature -> {}
         }
         return proto.build()
     }
