@@ -1129,31 +1129,6 @@ interface IrBuilderExtension {
         result.addAll(annotationByFq.values)
     }
 
-    fun areEnumCallArgsEqual(a: IrConstructorCall, b: IrConstructorCall): Boolean {
-        if (a.valueArgumentsCount != b.valueArgumentsCount) return false
-        for (i in 0 until a.valueArgumentsCount) {
-            val argA = a.getValueArgument(i)
-            val argB = b.getValueArgument(i)
-            if (argA == null && argB == null) continue
-            if (argA == null || argB == null) return false
-            when(argA) {
-                is IrConst<*> -> {
-                    if (argB !is IrConst<*>) return false
-                    if (argA.value != argB.value) return false
-                }
-                is IrGetEnumValue -> {
-                    if (argB !is IrGetEnumValue) return false
-                    if (argA.symbol.owner.fqNameWhenAvailable != argB.symbol.owner.fqNameWhenAvailable) return false
-                }
-                is IrClassReference -> {
-                    if (argB !is IrClassReference) return false
-                    if (argA.symbol.descriptor.fqNameSafe != argB.symbol.descriptor.fqNameSafe) return false
-                }
-            }
-        }
-        return true
-    }
-
     fun IrBuilderWithScope.callSerializerFromCompanion(
         thisIrType: IrType,
         typeArgs: List<IrType>,
