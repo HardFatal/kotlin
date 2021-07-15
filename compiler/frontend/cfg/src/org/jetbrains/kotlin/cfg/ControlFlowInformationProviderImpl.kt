@@ -1027,14 +1027,14 @@ class ControlFlowInformationProviderImpl private constructor(
                     }
                     if (!usedAsExpression && missingCases.isNotEmpty()) {
                         val kind = when {
-                            WhenChecker.getClassDescriptorOfTypeIfSealed(subjectType) != null -> LogicalTypeKind.Sealed
-                            WhenChecker.getClassDescriptorOfTypeIfEnum(subjectType) != null -> LogicalTypeKind.Enum
-                            subjectType?.isBooleanOrNullableBoolean() == true -> LogicalTypeKind.Boolean
+                            WhenChecker.getClassDescriptorOfTypeIfSealed(subjectType) != null -> AlgebraicTypeKind.Sealed
+                            WhenChecker.getClassDescriptorOfTypeIfEnum(subjectType) != null -> AlgebraicTypeKind.Enum
+                            subjectType?.isBooleanOrNullableBoolean() == true -> AlgebraicTypeKind.Boolean
                             else -> null
                         }
 
                         if (kind != null) {
-                            if (languageVersionSettings.supportsFeature(LanguageFeature.ProhibitNonExhaustiveWhenOnLogicalTypes)) {
+                            if (languageVersionSettings.supportsFeature(LanguageFeature.ProhibitNonExhaustiveWhenOnAlgebraicTypes)) {
                                 trace.report(NO_ELSE_IN_WHEN.on(element, missingCases))
                             } else {
                                 trace.report(NON_EXHAUSTIVE_WHEN_STATEMENT.on(element, kind.displayName, missingCases))
@@ -1046,7 +1046,7 @@ class ControlFlowInformationProviderImpl private constructor(
         }
     }
 
-    private enum class LogicalTypeKind(val displayName: String) {
+    private enum class AlgebraicTypeKind(val displayName: String) {
         Sealed("sealed class/interface"),
         Enum("enum"),
         Boolean("Boolean")
