@@ -85,7 +85,7 @@ class CoreXmlShadingTransformer : Transformer {
 }
 
 val runtimeJar = runtimeJar(embeddableCompiler()) {
-    exclude("com/sun/jna/**")
+    //exclude("com/sun/jna/**")
     exclude("org/jetbrains/annotations/**")
     mergeServiceFiles()
 
