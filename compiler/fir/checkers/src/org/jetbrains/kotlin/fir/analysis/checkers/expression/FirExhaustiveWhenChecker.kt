@@ -24,9 +24,7 @@ import org.jetbrains.kotlin.fir.expressions.isExhaustive
 import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.types.coneType
-import org.jetbrains.kotlin.fir.types.isBoolean
 import org.jetbrains.kotlin.fir.types.isBooleanOrNullableBoolean
-import org.jetbrains.kotlin.fir.types.isEnum
 
 object FirExhaustiveWhenChecker : FirWhenExpressionChecker() {
     override fun check(expression: FirWhenExpression, context: CheckerContext, reporter: DiagnosticReporter) {
@@ -50,9 +48,9 @@ object FirExhaustiveWhenChecker : FirWhenExpressionChecker() {
             val subjectType = whenExpression.subject?.typeRef?.coneType ?: return
             val subjectClassSymbol = subjectType.fullyExpandedType(context.session).toRegularClassSymbol(context.session) ?: return
             val kind = when {
-                subjectClassSymbol.modality == Modality.SEALED -> LogicalTypeKind.Sealed
-                subjectClassSymbol.classKind == ClassKind.ENUM_CLASS -> LogicalTypeKind.Enum
-                subjectType.isBooleanOrNullableBoolean -> LogicalTypeKind.Boolean
+                subjectClassSymbol.modality == Modality.SEALED -> AlgebraicTypeKind.Sealed
+                subjectClassSymbol.classKind == ClassKind.ENUM_CLASS -> AlgebraicTypeKind.Enum
+                subjectType.isBooleanOrNullableBoolean -> AlgebraicTypeKind.Boolean
                 else -> return
             }
 
@@ -67,7 +65,7 @@ object FirExhaustiveWhenChecker : FirWhenExpressionChecker() {
     private val FirWhenExpression.missingCases: List<WhenMissingCase>
         get() = (exhaustivenessStatus as ExhaustivenessStatus.NotExhaustive).reasons
 
-    private enum class LogicalTypeKind(val displayName: String) {
+    private enum class AlgebraicTypeKind(val displayName: String) {
         Sealed("sealed class/interface"),
         Enum("enum"),
         Boolean("Boolean")
