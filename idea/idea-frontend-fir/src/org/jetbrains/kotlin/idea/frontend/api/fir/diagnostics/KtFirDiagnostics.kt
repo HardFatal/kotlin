@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtAnonymousInitializer
 import org.jetbrains.kotlin.psi.KtArrayAccessExpression
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtBinaryExpressionWithTypeRHS
@@ -1962,6 +1963,10 @@ sealed class KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class ReturnInFunctionWithExpressionBody : KtFirDiagnostic<KtReturnExpression>() {
         override val diagnosticClass get() = ReturnInFunctionWithExpressionBody::class
+    }
+
+    abstract class AnonymousInitializerInInterface : KtFirDiagnostic<KtAnonymousInitializer>() {
+        override val diagnosticClass get() = AnonymousInitializerInInterface::class
     }
 
     abstract class UsageIsNotInlinable : KtFirDiagnostic<KtElement>() {

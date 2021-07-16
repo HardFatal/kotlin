@@ -138,4 +138,9 @@ object CommonDeclarationCheckers : DeclarationCheckers() {
             FirAnonymousFunctionParametersChecker,
             FirAnonymousFunctionSyntaxChecker,
         )
+
+    override val anonymousInitializerCheckers: Set<FirAnonymousInitializerChecker>
+        get() = setOf(
+            FirAnonymousInitializerInInterfaceChecker
+        )
 }

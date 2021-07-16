@@ -1036,6 +1036,8 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
     val RETURNS by object : DiagnosticGroup("Returns") {
         val RETURN_NOT_ALLOWED by error<KtReturnExpression>(PositioningStrategy.RETURN_WITH_LABEL)
         val RETURN_IN_FUNCTION_WITH_EXPRESSION_BODY by error<KtReturnExpression>(PositioningStrategy.RETURN_WITH_LABEL)
+
+        val ANONYMOUS_INITIALIZER_IN_INTERFACE by error<KtAnonymousInitializer>(PositioningStrategy.DECLARATION_SIGNATURE)
     }
 
     val INLINE by object : DiagnosticGroup("Inline") {
