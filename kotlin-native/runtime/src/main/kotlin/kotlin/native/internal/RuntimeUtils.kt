@@ -135,6 +135,7 @@ internal object UnhandledExceptionHookHolder {
 @PublishedApi
 @ExportForCppRuntime
 internal fun OnUnhandledException(throwable: Throwable) {
+    println("Kotlin OnUnhandledException")
     val handler = UnhandledExceptionHookHolder.hook.swap(null)
     if (handler == null) {
         ReportUnhandledException(throwable);

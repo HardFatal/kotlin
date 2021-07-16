@@ -17,6 +17,8 @@ class ScopedStrictMockFunction : private kotlin::MoveOnly {
 public:
     using Mock = testing::StrictMock<testing::MockFunction<F>>;
 
+    ScopedStrictMockFunction() noexcept : globalMockLocation_(nullptr), mock_(nullptr) {}
+
     explicit ScopedStrictMockFunction(Mock** globalMockLocation) : globalMockLocation_(globalMockLocation) {
         RuntimeCheck(globalMockLocation != nullptr, "ScopedStrictMockFunction needs non-null global mock location");
         RuntimeCheck(*globalMockLocation == nullptr, "ScopedStrictMockFunction needs null global mock");
@@ -49,6 +51,12 @@ public:
         std::swap(mock_, other.mock_);
     }
 
+    void verfyAndClear() {
+        if (mock_) {
+            testing::Mock::VerifyAndClear(mock_.get());
+        }
+    }
+
     Mock& get() { return *mock_; }
     Mock& operator*() { return *mock_; }
 
@@ -60,3 +68,4 @@ private:
 
 ScopedStrictMockFunction<KInt()> ScopedCreateCleanerWorkerMock();
 ScopedStrictMockFunction<void(KInt, bool)> ScopedShutdownCleanerWorkerMock();
+ScopedStrictMockFunction<void(KRef)> ScopedOnUnhandledExceptionMock();

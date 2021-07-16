@@ -51,6 +51,7 @@ struct KBox {
 
 testing::StrictMock<testing::MockFunction<KInt()>>* createCleanerWorkerMock = nullptr;
 testing::StrictMock<testing::MockFunction<void(KInt, bool)>>* shutdownCleanerWorkerMock = nullptr;
+testing::StrictMock<testing::MockFunction<void(KRef)>>* onUnhandledExceptionMock = nullptr;
 
 } // namespace
 
@@ -194,7 +195,9 @@ RUNTIME_NORETURN OBJ_GETTER(DescribeObjectForDebugging, KConstNativePtr typeInfo
 }
 
 void OnUnhandledException(KRef throwable) {
-    throw std::runtime_error("Not implemented for tests");
+    if (!onUnhandledExceptionMock) throw std::runtime_error("Not implemented for tests");
+
+    onUnhandledExceptionMock->Call(throwable);
 }
 
 void Kotlin_WorkerBoundReference_freezeHook(KRef thiz) {
@@ -280,4 +283,8 @@ ScopedStrictMockFunction<KInt()> ScopedCreateCleanerWorkerMock() {
 
 ScopedStrictMockFunction<void(KInt, bool)> ScopedShutdownCleanerWorkerMock() {
     return ScopedStrictMockFunction<void(KInt, bool)>(&shutdownCleanerWorkerMock);
+}
+
+ScopedStrictMockFunction<void(KRef)> ScopedOnUnhandledExceptionMock() {
+    return ScopedStrictMockFunction<void(KRef)>(&onUnhandledExceptionMock);
 }

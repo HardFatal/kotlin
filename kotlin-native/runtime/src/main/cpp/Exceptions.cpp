@@ -30,6 +30,9 @@
 #include "Utils.hpp"
 #include "ObjCExceptions.h"
 
+#include <iostream>
+#include <thread>
+
 void ThrowException(KRef exception) {
   RuntimeAssert(exception != nullptr && IsInstance(exception, theThrowableTypeInfo),
                 "Throwing something non-throwable");
@@ -69,6 +72,7 @@ void processUnhandledKotlinException(KRef throwable) {
   // Use the reentrant switch because both states are possible here:
   //  - runnable, if the exception occured in a pure Kotlin thread (except initialization of globals).
   //  - native, if the throwing code was called from ObjC/Swift or if the exception occured during initialization of globals.
+  std::cout << "Unhandled exception processing thread: " << std::this_thread::get_id() << std::endl;
   kotlin::ThreadStateGuard guard(kotlin::ThreadState::kRunnable, /* reentrant = */ true);
   OnUnhandledException(throwable);
 #if KONAN_REPORT_BACKTRACE_TO_IOS_CRASH_LOG
@@ -79,6 +83,7 @@ void processUnhandledKotlinException(KRef throwable) {
 } // namespace
 
 RUNTIME_NORETURN void TerminateWithUnhandledException(KRef throwable) {
+  printf("Terminate with unhandled Exception (C++. interop?)\n");
   concurrentTerminateWrapper([=]() {
     processUnhandledKotlinException(throwable);
     konan::abort();
@@ -102,6 +107,7 @@ class TerminateHandler : private kotlin::Pinned {
   // In fact, it's safe to call my_handler directly from outside: it will do the job and then invoke original handler,
   // even if it has not been initialized yet. So one may want to make it public and/or not the class member
   RUNTIME_NORETURN static void kotlinHandler() {
+    printf("Main termination handler!\n");
     concurrentTerminateWrapper([]() {
       if (auto currentException = std::current_exception()) {
         try {
