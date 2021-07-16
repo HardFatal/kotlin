@@ -58,6 +58,10 @@ public typealias ThreadLocal = kotlin.native.concurrent.ThreadLocal
 /** @suppress */
 public typealias SharedImmutable = kotlin.native.concurrent.SharedImmutable
 
+/**
+ * Forces a top level property to be initialized eagerly.
+ * Otherwise it will be initialized only at the first access to the corresponding file.
+ */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.BINARY)
 @ExperimentalStdlibApi
