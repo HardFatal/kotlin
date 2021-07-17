@@ -6212,6 +6212,11 @@ public class LightAnalysisModeTestGenerated extends AbstractLightAnalysisModeTes
             runTest("compiler/testData/codegen/box/controlStructures/quicksort.kt");
         }
 
+        @TestMetadata("slowHtmlLikeDsl.kt")
+        public void testSlowHtmlLikeDsl() throws Exception {
+            runTest("compiler/testData/codegen/box/controlStructures/slowHtmlLikeDsl.kt");
+        }
+
         @TestMetadata("tcbInEliminatedCondition.kt")
         public void testTcbInEliminatedCondition() throws Exception {
             runTest("compiler/testData/codegen/box/controlStructures/tcbInEliminatedCondition.kt");
